@@ -498,14 +498,21 @@ class RmaOrderLine(models.Model):
             if not route:
                 raise ValidationError(_("Please define an RMA route."))
 
-        if not operation.in_warehouse_id or not operation.out_warehouse_id:
+        if (
+            not operation.in_warehouse_id
+            or not operation.out_warehouse_id
+            or not (
+                operation.in_warehouse_id.lot_rma_id
+                or operation.out_warehouse_id.lot_rma_id
+            )
+        ):
             warehouse = self.env["stock.warehouse"].search(
                 [("company_id", "=", self.company_id.id), ("lot_rma_id", "!=", False)],
                 limit=1,
             )
             if not warehouse:
                 raise ValidationError(
-                    _("Please define a warehouse with a default RMA " "location.")
+                    _("Please define a warehouse with a default RMA location.")
                 )
 
         data = {
@@ -525,6 +532,7 @@ class RmaOrderLine(models.Model):
             "location_id": (
                 operation.location_id.id
                 or operation.in_warehouse_id.lot_rma_id.id
+                or operation.out_warehouse_id.lot_rma_id.id
                 or warehouse.lot_rma_id.id
             ),
         }
@@ -659,7 +667,7 @@ class RmaOrderLine(models.Model):
 
     def action_view_in_shipments(self):
         action = self.env.ref("stock.action_picking_tree_all")
-        result = action.read()[0]
+        result = action.sudo().read()[0]
         picking_ids = []
         for line in self:
             for move in line.move_ids:
@@ -681,7 +689,7 @@ class RmaOrderLine(models.Model):
 
     def action_view_out_shipments(self):
         action = self.env.ref("stock.action_picking_tree_all")
-        result = action.read()[0]
+        result = action.sudo().read()[0]
         picking_ids = []
         for line in self:
             for move in line.move_ids:
@@ -709,7 +717,7 @@ class RmaOrderLine(models.Model):
             action = self.env.ref("rma.action_rma_customer_lines")
             rma_lines = self.customer_rma_id.ids
             res = self.env.ref("rma.view_rma_line_form", False)
-        result = action.read()[0]
+        result = action.sudo().read()[0]
         # choose the view_mode accordingly
         if rma_lines and len(rma_lines) != 1:
             result["domain"] = rma_lines.ids
