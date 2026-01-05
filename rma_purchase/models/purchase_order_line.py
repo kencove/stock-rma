@@ -70,9 +70,10 @@ class PurchaseOrderLine(models.Model):
         else:
             return super(PurchaseOrderLine, self).name_get()
 
-    @api.model
-    def create(self, vals):
+    @api.model_create_multi
+    def create(self, vals_list):
         rma_line_id = self.env.context.get("rma_line_id")
         if rma_line_id:
-            vals["rma_line_id"] = rma_line_id
-        return super(PurchaseOrderLine, self).create(vals)
+            for vals in vals_list:
+                vals["rma_line_id"] = rma_line_id
+        return super(PurchaseOrderLine, self).create(vals_list)
